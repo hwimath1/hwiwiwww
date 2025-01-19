@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>일반각에 대한 삼각함수의 성질</title>
+  
+  <!-- MathJax for LaTeX rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+  
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f2f2f2;
+    }
+    h1, h2, h3 {
+      text-align: center;
+    }
+    #startScreen, #quizScreen, #resultScreen {
+      display: none;
+      margin: 20px auto;
+      max-width: 700px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    #startScreen {
+      display: block; /* 시작 화면 먼저 보이도록 */
+    }
+    #difficultyContainer {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .difficultyBtn {
+      margin: 5px;
+      padding: 10px 15px;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .difficultyBtn:hover {
+      background: #ddd;
+    }
+    #nameInputContainer {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #nameInput {
+      width: 200px;
+      height: 30px;
+      font-size: 16px;
+      text-align: center;
+    }
+    #energyBarContainer {
+      width: 100%;
+      background: #ccc;
+      height: 20px;
+      border-radius: 10px;
+      margin: 10px 0;
+      position: relative;
+    }
+    #energyBar {
+      height: 20px;
+      background: linear-gradient(90deg, #00c9ff, #92fe9d);
+      width: 100%;
+      border-radius: 10px;
+      transition: width 0.5s linear;
+    }
+    #questionContainer {
+      margin-top: 10px;
+    }
+    .choiceBtn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin: 5px 0;
+      padding: 8px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #f9f9f9;
+    }
+    .choiceBtn:hover {
+      background: #e6f7ff;
+    }
+    #feedback {
+      margin-top: 10px;
+      min-height: 24px;
+      font-weight: bold;
+    }
+    #scoreDisplay, #livesDisplay, #timeDisplay {
+      display: inline-block;
+      margin: 5px 10px;
+      font-weight: bold;
+    }
+    #response {
+      margin-top: 10px;
+      white-space: pre-wrap;
+      font-size: 0.9em;
+      color: #333;
+    }
+    #submitContainer {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #sendScoreBtn {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background: #f0ad4e;
+      color: #fff;
+      font-weight: bold;
+    }
+    #sendScoreBtn:hover {
+      background: #ec971f;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- 시작 화면 -->
+<div id="startScreen">
+  <h1>일반각에 대한 삼각함수의 성질</h1>
+  <div id="nameInputContainer">
+    <label for="nameInput">이름을 입력하세요</label><br/>
+    <input type="text" id="nameInput" placeholder="이름" />
+  </div>
+  <div id="difficultyContainer">
+    <p>난이도를 선택하세요</p>
+    <button class="difficultyBtn" type="button" onclick="startGame('최상')">최상 (25초 시작, 문제당 20점)</button>
+    <button class="difficultyBtn" type="button" onclick="startGame('상')">상 (35초 시작, 문제당 15점)</button>
+    <button class="difficultyBtn" type="button" onclick="startGame('중')">중 (45초 시작, 문제당 13점)</button>
+    <button class="difficultyBtn" type="button" onclick="startGame('하')">하 (시간 제한 없음, 문제당 10점)</button>
+  </div>
+</div>
+
+<!-- 퀴즈 진행 화면 -->
+<div id="quizScreen">
+  <div>
+    <span id="scoreDisplay">점수: 0</span>
+    <span id="livesDisplay">남은 기회: 3</span>
+    <span id="timeDisplay">총 경과 시간: 0초</span>
+  </div>
+  <div id="energyBarContainer">
+    <div id="energyBar"></div>
+  </div>
+  <div id="questionContainer"></div>
+  <div id="feedback"></div>
+</div>
+
+<!-- 결과 화면 -->
+<div id="resultScreen">
+  <h2>게임 종료</h2>
+  <p id="finalMessage"></p>
+  <div id="submitContainer">
+    <button id="sendScoreBtn" type="button" onclick="sendScore()">점수 전송</button>
+  </div>
+  <div id="response"></div>
+</div>
+
+<!-- 스크립트를 BODY 맨 아래 배치하여 DOM 로딩 문제 방지 -->
+<script>
+// ------------------------------------------------------------------------
+// 서버 전송 함수
+function saveData(game, name, score, elapsedTime) {
+    var FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+
+    var requestData = {
+        game: game,
+        name: name,
+        score: parseInt(score, 10),
+        elapsedTime: parseInt(elapsedTime, 10)
+    };
+
+    fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+    })
+    .then(function(response) {
+        return response.json().then(function(responseData){
+            if (response.ok) {
+                document.getElementById('response').innerText = 
+                    "성공: " + JSON.stringify(responseData, null, 2);
+            } else {
+                document.getElementById('response').innerText = 
+                    "오류: " + JSON.stringify(responseData, null, 2);
+            }
+        });
+    })
+    .catch(function(error) {
+        console.error('요청 실패:', error);
+        document.getElementById('response').innerText = 
+            "네트워크 오류: " + error.message;
+    });
+}
+// ------------------------------------------------------------------------
+
+// 난이도에 따른 초기 제한 시간 (초)
+var timeSettings = {
+  "최상": 25,
+  "상": 35,
+  "중": 45,
+  "하": Infinity
+};
+// 난이도에 따른 문제당 점수
+var scoreSettings = {
+  "최상": 20,
+  "상": 15,
+  "중": 13,
+  "하": 10
+};
+
+// 전체 게임 시간(초)
+var totalElapsedTime = 0;
+var totalTimeInterval = null;
+
+// 문제별 제한 시간
+var questionTimeInterval = null;
+
+// 현재 난이도
+var currentDifficulty = null;
+// 현재 점수
+var score = 0;
+// 남은 기회
+var lives = 3;
+// 문제 목록
+var questions = [];
+var currentQuestionIndex = 0;
+
+// -----------------------------------
+// 문제 데이터 (문제 59, 60 제외)
+// -----------------------------------
+var allQuestions = [
+
+  // 세트 #1 (문제 1~5)
+  {
+    question: "다음 중 \\(\\sin\\dfrac{5\\pi}{4}\\), \\(\\cos\\dfrac{5\\pi}{4}\\), \\(\\tan\\dfrac{5\\pi}{4}\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sin\\dfrac{5\\pi}{4}=-\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\dfrac{5\\pi}{4}=-\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\dfrac{5\\pi}{4}=1\\)",
+      "\\(\\sin\\dfrac{5\\pi}{4}=\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\dfrac{5\\pi}{4}=-\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\dfrac{5\\pi}{4}=-1\\)",
+      "\\(\\sin\\dfrac{5\\pi}{4}=-\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\dfrac{5\\pi}{4}=\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\dfrac{5\\pi}{4}=-1\\)",
+      "\\(\\sin\\dfrac{5\\pi}{4}=-\\dfrac{1}{2},\\quad\\cos\\dfrac{5\\pi}{4}=-\\dfrac{1}{2},\\quad\\tan\\dfrac{5\\pi}{4}=1\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\sin\\dfrac{7\\pi}{6}\\), \\(\\cos\\dfrac{7\\pi}{6}\\), \\(\\tan\\dfrac{7\\pi}{6}\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sin\\dfrac{7\\pi}{6}=-\\dfrac{1}{2},\\quad\\cos\\dfrac{7\\pi}{6}=-\\dfrac{\\sqrt{3}}{2},\\quad\\tan\\dfrac{7\\pi}{6}=\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(\\sin\\dfrac{7\\pi}{6}=-\\dfrac{\\sqrt{3}}{2},\\quad\\cos\\dfrac{7\\pi}{6}=-\\dfrac{1}{2},\\quad\\tan\\dfrac{7\\pi}{6}=\\sqrt{3}\\)",
+      "\\(\\sin\\dfrac{7\\pi}{6}=-\\dfrac{1}{2},\\quad\\cos\\dfrac{7\\pi}{6}=\\dfrac{\\sqrt{3}}{2},\\quad\\tan\\dfrac{7\\pi}{6}=-\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(\\sin\\dfrac{7\\pi}{6}=\\dfrac{1}{2},\\quad\\cos\\dfrac{7\\pi}{6}=-\\dfrac{\\sqrt{3}}{2},\\quad\\tan\\dfrac{7\\pi}{6}=-\\sqrt{3}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\sin\\dfrac{2\\pi}{3}\\), \\(\\cos\\dfrac{2\\pi}{3}\\), \\(\\tan\\dfrac{2\\pi}{3}\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sin\\dfrac{2\\pi}{3}=\\dfrac{\\sqrt{3}}{2},\\quad\\cos\\dfrac{2\\pi}{3}=-\\dfrac{1}{2},\\quad\\tan\\dfrac{2\\pi}{3}=-\\sqrt{3}\\)",
+      "\\(\\sin\\dfrac{2\\pi}{3}=\\dfrac{1}{2},\\quad\\cos\\dfrac{2\\pi}{3}=-\\dfrac{\\sqrt{3}}{2},\\quad\\tan\\dfrac{2\\pi}{3}=\\sqrt{3}\\)",
+      "\\(\\sin\\dfrac{2\\pi}{3}=\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\dfrac{2\\pi}{3}=-\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\dfrac{2\\pi}{3}=-1\\)",
+      "\\(\\sin\\dfrac{2\\pi}{3}=-\\dfrac{\\sqrt{3}}{2},\\quad\\cos\\dfrac{2\\pi}{3}=\\dfrac{1}{2},\\quad\\tan\\dfrac{2\\pi}{3}=-\\dfrac{\\sqrt{3}}{3}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\sin\\bigl(-\\dfrac{\\pi}{3}\\bigr)\\), \\(\\cos\\bigl(-\\dfrac{\\pi}{3}\\bigr)\\), \\(\\tan\\bigl(-\\dfrac{\\pi}{3}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{3}\\bigr)=-\\dfrac{\\sqrt{3}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{3}\\bigr)=\\dfrac{1}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{3}\\bigr)=-\\sqrt{3}\\)",
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{3}\\bigr)=\\dfrac{\\sqrt{3}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{3}\\bigr)=\\dfrac{1}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{3}\\bigr)=\\sqrt{3}\\)",
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{3}\\bigr)=-\\dfrac{\\sqrt{3}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{3}\\bigr)=-\\dfrac{1}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{3}\\bigr)=-1\\)",
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{3}\\bigr)=-\\dfrac{1}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{3}\\bigr)=\\dfrac{\\sqrt{3}}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{3}\\bigr)=\\dfrac{1}{\\sqrt{3}}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\sin\\bigl(-\\dfrac{\\pi}{4}\\bigr)\\), \\(\\cos\\bigl(-\\dfrac{\\pi}{4}\\bigr)\\), \\(\\tan\\bigl(-\\dfrac{\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{4}\\bigr)=\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{4}\\bigr)=-\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{4}\\bigr)=-1\\)",
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{4}\\bigr)=-\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{4}\\bigr)=\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{4}\\bigr)=-1\\)",
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{4}\\bigr)=-\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{4}\\bigr)=-\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{4}\\bigr)=1\\)",
+      "\\(\\sin\\bigl(-\\dfrac{\\pi}{4}\\bigr)=\\dfrac{\\sqrt{2}}{2},\\quad\\cos\\bigl(-\\dfrac{\\pi}{4}\\bigr)=\\dfrac{\\sqrt{2}}{2},\\quad\\tan\\bigl(-\\dfrac{\\pi}{4}\\bigr)=1\\)"
+    ],
+    answer: 1
+  },
+
+  // 세트 #2 (문제 6~12)
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{\\pi}{2} + \\dfrac{\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-\\sqrt{3}\\)",
+      "\\(\\sqrt{3}\\)",
+      "\\(0\\)",
+      "\\(1\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{\\pi}{2} - \\dfrac{\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-1\\)",
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(1\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\sin\\bigl(\\dfrac{\\pi}{2} + \\dfrac{\\pi}{3}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\sqrt{3}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\sin\\bigl(\\dfrac{5\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{4\\pi}{3}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(-1\\)",
+      "\\(0\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\cos\\bigl(\\dfrac{7\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{19\\pi}{3}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(1\\)",
+      "\\(-1\\)"
+    ],
+    answer: 0
+  },
+
+  // 세트 #3 (문제 14~20)
+  {
+    question: "다음 중 \\(\\cos\\bigl(\\dfrac{9\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\cos\\bigl(\\dfrac{5\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\sin\\bigl(\\dfrac{5\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{7\\pi}{3}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(\\dfrac{1}{\\sqrt{3}}\\)",
+      "\\(-\\dfrac{1}{\\sqrt{3}}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\cos\\bigl(\\dfrac{25\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{5\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(\\sqrt{3}\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 중 \\(\\cos\\bigl(\\dfrac{3\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)"
+    ],
+    answer: 1
+  },
+
+  // 세트 #4 (문제 24~31)
+  {
+    question: "다음 중 \\(\\sin\\bigl(-\\dfrac{\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\cos\\bigl(-\\dfrac{\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\sqrt{2}\\)",
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)"
+    ],
+    answer: 3
+  },
+  {
+    question: "다음 중 \\(\\sin\\bigl(-\\dfrac{\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\tan\\bigl(\\dfrac{11\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(\\sqrt{3}\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 중 \\(\\sin(120^\\circ)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(\\sqrt{3}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)"
+    ],
+    answer: 3
+  },
+  {
+    question: "다음 중 \\(\\tan(150^\\circ)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{3}\\)",
+      "\\(-\\sqrt{3}\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\cos(135^\\circ)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 중 \\(\\sin(210^\\circ)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)"
+    ],
+    answer: 2
+  },
+
+  // 세트 #5 (문제 52~58)
+  {
+    question: "다음 식 \\(\\sin\\dfrac{5\\pi}{6} + \\cos\\dfrac{4\\pi}{3}\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(1\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-1\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 식 \\(\\cos\\dfrac{7\\pi}{6} - \\tan\\dfrac{2\\pi}{3}\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{\\sqrt{3}}{2}\\)",
+      "\\(-\\dfrac{1}{2}\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 식 \\(\\sin\\bigl(\\dfrac{3\\pi}{2}-\\dfrac{\\pi}{3}\\bigr) + \\tan\\bigl(\\dfrac{7\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-\\dfrac{1}{2}\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(-\\dfrac{3}{2}\\)",
+      "\\(\\dfrac{3}{2}\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 식 \\(\\sin\\dfrac{7\\pi}{6} + \\cos\\bigl(-\\dfrac{8\\pi}{3}\\bigr) - \\tan\\bigl(-\\dfrac{7\\pi}{4}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-2\\)",
+      "\\(-1\\)",
+      "\\(0\\)",
+      "\\(2\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 식 \\(\\sin\\dfrac{2\\pi}{3} + \\cos\\bigl(-\\dfrac{13\\pi}{6}\\bigr) + \\tan\\bigl(\\dfrac{8\\pi}{3}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\sqrt{3}\\)",
+      "\\(-\\sqrt{3}\\)",
+      "\\(0\\)",
+      "\\(\\dfrac{1}{2}\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 식 \\(\\dfrac{1}{\\sin\\dfrac{\\pi}{3}} - \\cos\\dfrac{3\\pi}{4} + 2\\tan\\bigl(-\\dfrac{7\\pi}{6}\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{\\sqrt{2}}{2}\\)",
+      "\\(\\dfrac{1}{\\sqrt{2}}\\)",
+      "\\(\\dfrac{3}{2}\\)",
+      "\\(-\\dfrac{\\sqrt{2}}{2}\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 식 \\(\\sin\\bigl(-\\dfrac{13\\pi}{6}\\bigr)\\cos\\bigl(-\\dfrac{2\\pi}{3}\\bigr) + \\dfrac{1}{\\sin 300^\\circ}\\cdot\\tan(210^\\circ)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(-\\dfrac{5}{12}\\)",
+      "\\(\\dfrac{5}{12}\\)",
+      "\\(-\\dfrac{1}{4}\\)",
+      "\\(\\dfrac{1}{4}\\)"
+    ],
+    answer: 0
+  },
+
+  // 세트 #7 (문제 61~64) -- 59,60 제외
+  {
+    question: "다음 중 \\(\\dfrac{\\cos(\\pi - \\theta)\\,\\tan(\\pi - \\theta)}{\\cos\\bigl(\\dfrac{\\pi}{2} - \\theta\\bigr)}\\) 의 값으로 옳은 것은?",
+    choices: [
+      "\\(1\\)",
+      "\\(0\\)",
+      "\\(-1\\)",
+      "\\(2\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 식 \\(\\sin\\bigl(\\dfrac{5\\pi}{2}-\\theta\\bigr)+\\cos(-\\pi+\\theta)+\\sin\\bigl(\\dfrac{3\\pi}{2}+\\theta\\bigr)+\\cos(-\\theta)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(1\\)",
+      "\\(\\sin\\theta\\)",
+      "\\(2\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 식 \\(\\sin\\bigl(\\dfrac{\\pi}{2}-\\theta\\bigr)-\\sin(-\\theta+\\pi)+\\cos(\\pi+\\theta)+\\cos\\bigl(\\dfrac{3\\pi}{2}+\\theta\\bigr)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(1\\)",
+      "\\(\\cos\\theta\\)",
+      "\\(-1\\)"
+    ],
+    answer: 0
+  },
+  {
+    question: "다음 식 \\(\\sin^2\\bigl(\\dfrac{\\pi}{2}+\\theta\\bigr)+\\sin^2(\\pi+\\theta)\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(1\\)",
+      "\\(2\\)",
+      "\\(-1\\)"
+    ],
+    answer: 1
+  },
+
+  // 세트 #8 (문제 68~75)
+  {
+    question: "다음 중 \\(\\tan\\,1^\\circ \\times \\tan\\,3^\\circ \\times \\tan\\,5^\\circ \\times \\dots \\times \\tan\\,87^\\circ \\times \\tan\\,89^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(1\\)",
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(2\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\sin^2\\,5^\\circ + \\sin^2\\,10^\\circ + \\sin^2\\,15^\\circ + \\dots + \\sin^2\\,90^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(8\\)",
+      "\\(10.5\\)",
+      "\\(\\dfrac{19}{2}\\)",
+      "\\(20\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 중 \\(\\tan\\,2^\\circ \\times \\tan\\,4^\\circ \\times \\dots \\times \\tan\\,86^\\circ \\times \\tan\\,88^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(1\\)",
+      "\\(-1\\)",
+      "\\(2\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\cos^2\\,0^\\circ + \\cos^2\\,10^\\circ + \\cos^2\\,20^\\circ + \\dots + \\cos^2\\,90^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(4\\)",
+      "\\(5\\)",
+      "\\(6\\)",
+      "\\(8\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\cos^{20^\\circ} + \\cos^{21^\\circ} + \\cos^{22^\\circ} + \\dots + \\cos^{2360^\\circ}\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(90\\)",
+      "\\(181\\)",
+      "\\(360\\)",
+      "\\(720\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\tan\\,1^\\circ \\times \\tan\\,2^\\circ \\times \\dots \\times \\tan\\,88^\\circ \\times \\tan\\,89^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{1}{2}\\)",
+      "\\(1\\)",
+      "\\(-1\\)",
+      "\\(2\\)"
+    ],
+    answer: 1
+  },
+  {
+    question: "다음 중 \\(\\cos^2\\,10^\\circ + \\cos^2\\,20^\\circ + \\dots + \\cos^2\\,70^\\circ + \\cos^2\\,80^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(0\\)",
+      "\\(2\\)",
+      "\\(4\\)",
+      "\\(8\\)"
+    ],
+    answer: 2
+  },
+  {
+    question: "다음 중 \\(\\sin^2\\,1^\\circ + \\sin^2\\,2^\\circ + \\dots + \\sin^2\\,89^\\circ + \\sin^2\\,90^\\circ\\)의 값으로 옳은 것은?",
+    choices: [
+      "\\(\\dfrac{91}{2}\\)",
+      "\\(45\\)",
+      "\\(90\\)",
+      "\\(180\\)"
+    ],
+    answer: 0
+  }
+];
+
+// -------- 유틸: Fisher-Yates 셔플 함수 --------
+function shuffleArray(array) {
+  for(var i = array.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i+1));
+    var temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+}
+
+// ----------------------------------------------
+// 게임 시작
+function startGame(difficulty) {
+  var playerName = document.getElementById("nameInput").value.trim();
+  if(!playerName && difficulty !== "하"){
+    alert("이름을 입력하세요.");
+    return;
+  }
+
+  currentDifficulty = difficulty;
+  score = 0;
+  lives = 3;
+  totalElapsedTime = 0;
+
+  // 문제 셔플
+  questions = allQuestions.slice();
+  shuffleArray(questions);
+  currentQuestionIndex = 0;
+
+  // 화면 전환
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("quizScreen").style.display = "block";
+  document.getElementById("resultScreen").style.display = "none";
+
+  document.getElementById("scoreDisplay").textContent = "점수: 0";
+  document.getElementById("livesDisplay").textContent = "남은 기회: 3";
+  document.getElementById("timeDisplay").textContent = "총 경과 시간: 0초";
+
+  // 전체 시간 타이머 시작
+  if(totalTimeInterval){
+    clearInterval(totalTimeInterval);
+  }
+  totalTimeInterval = setInterval(function(){
+    totalElapsedTime++;
+    document.getElementById("timeDisplay").textContent = "총 경과 시간: " + totalElapsedTime + "초";
+  }, 1000);
+
+  showQuestion();
+}
+
+// 문제 표시
+function showQuestion(){
+  // 모든 문제 소진
+  if(currentQuestionIndex >= questions.length){
+    endGame(false);
+    return;
+  }
+  // 기존 타이머 제거
+  if(questionTimeInterval){
+    clearInterval(questionTimeInterval);
+  }
+
+  document.getElementById("feedback").textContent = "";
+
+  var q = questions[currentQuestionIndex];
+  var html = "<div><p>" + q.question + "</p></div>";
+  html += "<div>";
+  for(var i=0; i<q.choices.length; i++){
+    html += '<button class="choiceBtn" type="button" onclick="selectAnswer('+i+')">'+ q.choices[i] +'</button>';
+  }
+  html += "</div>";
+  document.getElementById("questionContainer").innerHTML = html;
+
+  // MathJax 렌더링
+  MathJax.typeset();
+
+  // 에너지바 초기화
+  setEnergyBar(100);
+
+  if(currentDifficulty !== "하"){
+    var startTime = timeSettings[currentDifficulty];
+    var remaining = startTime;
+    questionTimeInterval = setInterval(function(){
+      remaining--;
+      var pct = (remaining / startTime) * 100;
+      setEnergyBar(pct);
+      if(remaining <= 0){
+        clearInterval(questionTimeInterval);
+        timesUp();
+      }
+    }, 1000);
+  }
+}
+
+function setEnergyBar(percent){
+  var bar = document.getElementById("energyBar");
+  bar.style.width = Math.max(0, percent) + "%";
+}
+
+function timesUp(){
+  // 시간 초과 -> 오답 처리
+  lives--;
+  document.getElementById("livesDisplay").textContent = "남은 기회: " + lives;
+
+  // 정답 공개
+  var correct = questions[currentQuestionIndex].answer;
+  var correctText = questions[currentQuestionIndex].choices[correct];
+  document.getElementById("feedback").textContent = 
+    "시간 초과! 정답: " + correctText.replace(/^.*?\)/, "");
+
+  currentQuestionIndex++;
+  if(lives <= 0){
+    endGame(true);
+  } else {
+    setTimeout(function(){
+      showQuestion();
+    }, 1500);
+  }
+}
+
+function selectAnswer(choiceIndex){
+  clearInterval(questionTimeInterval);
+  
+  var q = questions[currentQuestionIndex];
+  if(choiceIndex === q.answer){
+    // 정답
+    score += scoreSettings[currentDifficulty];
+    document.getElementById("scoreDisplay").textContent = "점수: " + score;
+    document.getElementById("feedback").textContent = 
+      "정답입니다! +" + scoreSettings[currentDifficulty] + "점";
+  } else {
+    // 오답
+    lives--;
+    document.getElementById("livesDisplay").textContent = "남은 기회: " + lives;
+    
+    var correct = q.answer;
+    var correctText = q.choices[correct];
+    document.getElementById("feedback").textContent = 
+      "틀렸습니다! 정답: " + correctText.replace(/^.*?\)/, "");
+  }
+  
+  currentQuestionIndex++;
+  if(lives <= 0){
+    endGame(true);
+  } else {
+    setTimeout(function(){
+      showQuestion();
+    }, 1500);
+  }
+}
+
+function endGame(byMistake){
+  clearInterval(totalTimeInterval);
+  clearInterval(questionTimeInterval);
+
+  document.getElementById("quizScreen").style.display = "none";
+  document.getElementById("resultScreen").style.display = "block";
+
+  if(byMistake){
+    document.getElementById("finalMessage").textContent = 
+      "3번 틀려서 게임이 종료되었습니다. 총 점수: " + score;
+  } else {
+    document.getElementById("finalMessage").textContent = 
+      "모든 문제를 완료했습니다! 총 점수: " + score;
+  }
+}
+
+// 점수 전송
+function sendScore(){
+  var playerName = document.getElementById("nameInput").value.trim() || "익명";
+  saveData("일반각에 대한 삼각함수의 성질", playerName, score, totalElapsedTime);
+}
+</script>
+
+</body>
+</html>
